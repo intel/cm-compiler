@@ -165,6 +165,10 @@ private:
   bool HasDpasHalfAcc = false;
   bool HasDpasBF16Acc = false;
 
+  bool Has3DSampleHalf = false;
+  bool HasLsc2DLarge = false;
+  bool HasLscL1L2L3Cache = false;
+
   unsigned GrfWidth = 256;
   std::unordered_set<unsigned> SupportedGrfNums;
 

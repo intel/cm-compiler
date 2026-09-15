@@ -192,6 +192,13 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasDpasBF16Acc)
     Builder.defineMacro("CM_HAS_DPAS_ACC_BF16", "1");
 
+  if (Has3DSampleHalf)
+    Builder.defineMacro("CM_HAS_3D_SAMPLE_HALF", "1");
+  // Always defined: used in C++ expressions, not only in #ifdef.
+  Builder.defineMacro("CM_HAS_LSC_2D_LARGE", HasLsc2DLarge ? "1" : "0");
+  if (HasLscL1L2L3Cache)
+    Builder.defineMacro("CM_HAS_LSC_L1L2L3_CACHE", "1");
+
   if (HasSLMCasInt64)
     Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
 

@@ -213,18 +213,6 @@ template <typename T> CM_INLINE CM_NODEBUG void Check() {
 #define CM_HAS_SIGMOID_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_SIGMOID
 
-#if __CM_INTEL_TARGET_MAJOR >= 35
-#define CM_HAS_LSC_L1L2L3_CACHE
-#endif
-
-#if __CM_INTEL_TARGET_MAJOR >= 35
-#define CM_HAS_LSC_2D_LARGE 1
-#else
-#define CM_HAS_LSC_2D_LARGE 0
-#endif
-
-#define CM_HAS_3D_SAMPLE_HALF 1
-
 #else  // CM_HAS_CONTROL
 CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control "
                    "version of features!");
