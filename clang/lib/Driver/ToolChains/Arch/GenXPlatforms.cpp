@@ -104,6 +104,7 @@ static const std::unordered_map<std::string, uint32_t> PciId {
   {"0xb087", encodeGmdId(30, 0, 4)},
   {"0xb08f", encodeGmdId(30, 0, 4)},
   {"0xb0a0", encodeGmdId(30, 0, 4)},
+  {"0xb0a1", encodeGmdId(30, 0, 4)},
   {"0x6420", encodeGmdId(20, 4, 4)},
   {"0x64a0", encodeGmdId(20, 4, 4)},
   {"0x64b0", encodeGmdId(20, 4, 4)},
