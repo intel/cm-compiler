@@ -108,11 +108,6 @@ createBuiltinMemoryFileSystem() {
   return MemFS;
 }
 
-llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> getHeadersFileSystem() {
-  static auto MemFS = createBuiltinMemoryFileSystem();
-  return MemFS;
-}
-
 // Removes every "-mllvm <value>" pair from Opts and returns the values.
 std::vector<const char *> extractLLVMArgs(std::vector<const char *> &Opts) {
   std::vector<const char *> LLVMArgs;
@@ -156,7 +151,11 @@ createFileSystem(const wrapper::IInputArgs *InArgs,
   auto OverlayMemFS =
       wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>(
           llvm::vfs::getRealFileSystem());
-  OverlayMemFS->pushOverlay(getHeadersFileSystem());
+  // Each compilation gets its own headers file system: pushOverlay() sets the
+  // working directory of the pushed file system, so sharing one instance
+  // between concurrent compilations is a data race. The file buffers only
+  // reference the embedded header data, so this is cheap.
+  OverlayMemFS->pushOverlay(createBuiltinMemoryFileSystem());
 
   // User can specify source file to be compiled in 2 ways:
   // 1) by passing file name in real FS (InputFileName gets it;
