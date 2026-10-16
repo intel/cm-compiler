@@ -1,13 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-_GENX_ void test1()
-{
+_GENX_ void test1() {
   matrix<float, 4, 2> m1;
   // ...
   vector_ref<float, 4> v1(m1.select<2,1,2,1>(0,0).format<float>());

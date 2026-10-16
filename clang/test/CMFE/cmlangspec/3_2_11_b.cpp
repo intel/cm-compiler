@@ -1,13 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-_GENX_ void test1()
-{
+_GENX_ void test1() {
   matrix<int,4,2>   m, src1, src2;
   matrix<ushort,4,2> mask;
   // ...

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,20 +10,17 @@ SPDX-License-Identifier: MIT
 
 _GENX_ matrix<float, 2, 2> M;                        // global data declaration
 
-_GENX_ matrix<float, 4, 4> plusone(matrix<float, 4, 4> m)
-{
+_GENX_ matrix<float, 4, 4> plusone(matrix<float, 4, 4> m) {
   return m+1.0f;
 }
 
-_GENX_ float foo(matrix<float, 4, 4> m)              // user defined GenX function
-{
+_GENX_ float foo(matrix<float, 4, 4> m) {              // user defined GenX function
   matrix<float, 4, 4> newm = plusone(m);
   return cm_sum<float>(newm);
 }
 
-_GENX_ void bar_value(vector<float, 16> v, float f)  // user defined GenX function
+_GENX_ void bar_value(vector<float, 16> v, float f) {  // user defined GenX function
                                                      // using pass-by-value for "v"
-{
   matrix<float, 4, 4> m1;
   m1 = v + f;
   float s = foo(m1);
@@ -31,8 +28,7 @@ _GENX_ void bar_value(vector<float, 16> v, float f)  // user defined GenX functi
 }
 
 _GENX_ void bar_ref(vector<float, 16> v, float f,    // user defined GenX function
-                    matrix_ref<float, 2, 2> m)       // using pass-by-reference for "m"
-{
+                    matrix_ref<float, 2, 2> m) {       // using pass-by-reference for "m"
   matrix<float, 4, 4> m1;
   m1 = v + f;
   float s = foo(m1);
@@ -40,8 +36,7 @@ _GENX_ void bar_ref(vector<float, 16> v, float f,    // user defined GenX functi
 }
 
 _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf, // GenX kernel function
-                        int x_pos, int y_pos)
-{
+                        int x_pos, int y_pos) {
   matrix<float, 4, 4> m;
   vector<float, 16>   v;
 

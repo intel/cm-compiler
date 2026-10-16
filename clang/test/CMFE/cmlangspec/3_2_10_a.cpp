@@ -1,13 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-_GENX_ void test1()
-{
+_GENX_ void test1() {
   matrix<int, 4, 4>       m1;
   // ...
   matrix_ref<char, 4, 16> m2 = m1.format<char, 4, 16>( );

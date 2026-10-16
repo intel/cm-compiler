@@ -1,13 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-void foo()
-{
+void foo() {
   vector<float, 8> f;
   vector<int, 8> i;
   // ...

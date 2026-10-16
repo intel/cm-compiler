@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,7 @@ SPDX-License-Identifier: MIT
 
 // expected-no-diagnostics
 
-_GENX_MAIN_ void printf_demo_genx()
-{
+_GENX_MAIN_ void printf_demo_genx() {
   int tx = get_thread_origin_x();
   int ty = get_thread_origin_y();
 

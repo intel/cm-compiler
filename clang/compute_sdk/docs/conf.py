@@ -80,6 +80,7 @@ exclude_patterns = [
   '_build_internal',
   'cmllvmdesign/index.rst',
   'cmlangspec/index.rst',
+  'cmlangspec/cmtl.rst',
   'cmcuserguide/index.rst',
   'cmtutorial/index.rst',
   'index_internal.rst',

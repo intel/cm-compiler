@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,7 @@ SPDX-License-Identifier: MIT
 
 #include <cm/cmtl.h>
 
-_GENX_ void test1()
-{
+_GENX_ void test1() {
   cm_matrix(m, ushort, 4, 8, 10, 5);
   // ...
 }

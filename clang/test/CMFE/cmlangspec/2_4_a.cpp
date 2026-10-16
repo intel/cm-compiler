@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2025 Intel Corporation
+Copyright (C) 2016-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -11,13 +11,11 @@ SPDX-License-Identifier: MIT
                 matrix<float, 2, 2> M;      // global variable declaration
 _GENX_VOLATILE_ matrix<float, 4, 8> G;      // volatile global variable declaration
 
-inline float foo(matrix<float, 4, 4> m)
-{
+inline float foo(matrix<float, 4, 4> m) {
   return cm_sum<float>(m);
 }
 
-inline void bar(vector<float, 16> v, float f)
-{
+inline void bar(vector<float, 16> v, float f) {
   matrix<float, 4, 4> m1;
   m1 = v + f;
   float s = foo(m1);
@@ -29,8 +27,7 @@ inline void baz(int i) {
 }
 
 _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf,
-                        int x_pos, int y_pos)
-{
+                        int x_pos, int y_pos) {
   matrix<float, 4, 4> m;
   vector<float, 16>   v;
 

@@ -26,7 +26,7 @@ The following simple vector addition kernel illustrates the major differences on
 
 .. literalinclude:: vadd.cpp
    :language: c++
-   :lines: 18-43
+   :lines: 18-42
 
 SurfaceIndex is an opaque type that defines a memory handler. The value is the binding
 table index (BTI) of the surface state created and managed by the runtime.

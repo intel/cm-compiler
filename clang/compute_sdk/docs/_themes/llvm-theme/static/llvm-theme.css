@@ -304,6 +304,13 @@ table {
     margin: 0 -0.5em 0 -0.5em;
 }
 
+table.align-default, table.align-center {
+    /* Override basic.css's auto-centering margins so tables (including
+       list-table/csv-table output) stay left-aligned on the page. */
+    margin-left: 0;
+    margin-right: 0;
+}
+
 table td, table th {
     padding: 0.2em 0.5em 0.2em 0.5em;
 }
