@@ -10148,7 +10148,7 @@ the macros defined in the table.
 
 .. csv-table::
    :header: "``ResTy``, ``AccTy``", "Source precision", "OpsPerChannel", "Macros"
-   :widths: 21 18 13 24
+   :widths: 21 18 13 44
 
    "``int``", "CM_PRECISION_U2, CM_PRECISION_S2", "8", "``CM_HAS_DPAS_INT2``"
    "``int``", "CM_PRECISION_U4, CM_PRECISION_S4", "8", "``CM_HAS_DPAS_INT4``"
@@ -10437,7 +10437,7 @@ Valid values for the float control setting are as follows:
 
 .. csv-table::
    :header: "Attribute Name", "Description"
-   :widths: 24 55
+   :widths: 24 75
 
    "CM_RTE", "Set round to nearest even (default)"
    "CM_RTP", "Set round towards positive infinity"

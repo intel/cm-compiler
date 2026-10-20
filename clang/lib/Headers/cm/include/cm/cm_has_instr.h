@@ -28,7 +28,10 @@ template <bool checking> struct VersionWrapper final {
   static constexpr bool check = checking;
 };
 
-template <typename T> CM_INLINE CM_NODEBUG void Check() {
+// Not SIMD-predicated, so it can be called under SIMD control flow from
+// builtins of different widths.
+template <typename T>
+CM_INLINE CM_NODEBUG __declspec(genx_no_SIMD_pred) void Check() {
   CM_STATIC_ERROR(T::check, "Not supported feature for this platform");
 }
 } // namespace CheckVersion
