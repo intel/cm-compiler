@@ -1137,7 +1137,7 @@ guarantee consistent semantics and to allow for an efficient implementation.
   SIMD width of its immediate context. Furthermore reduction functions will perform reduction
   only on active scalar sub-elements of its source as determined by its context's SIMD mask.
 
-* The dot product, the sum of absolute differences and the line operators are not allowed in SIMD
+* The sum of absolute differences operators are not allowed in SIMD
   control flow blocks as they operate on tuple variable which are not well-defined when we use
   SIMD masks.
 
@@ -1644,9 +1644,6 @@ Two-, three- and four-wide dot product.
 
 
 
-Dot product, line and sum of difference operators are not permitted in a SIMD
-control flow context.
-
 cm_dp4 performs the 4-wide dot product operation for each 4-tuple of elements
 in the input vector/matrix parameters, and sets the same scalar product result
 to each element of the corresponding 4-tuple in the return value.
@@ -1683,9 +1680,6 @@ Four-wide homogeneous dot product.
      - Only floating-point type arguments are supported.
 
 
-
-Dot product, line and sum of difference operators are not permitted in a SIMD
-control flow context.
 
 cm_frc
 ^^^^^^
@@ -1754,8 +1748,7 @@ scalar coefficients needed for this function.
      - vector of length 4; alternatively pass the ``P``/``Q`` scalar
        coefficients directly (1st and 4th tuple element).
    * - src1
-     - matrix, matrix_ref, vector or vector_ref operand; length must be a
-       multiple of 8.
+     - matrix, matrix_ref, vector or vector_ref operand.
    * - flag
      - Saturation control; default is NOSAT, use SAT to enable saturation.
 
@@ -1766,9 +1759,6 @@ The scalar values X[0] and X[3] used in the linear equation correspond to the fi
 elements of the 4-tuple in the first input parameter.
 
 Only floating-point type arguments are supported.
-
-Dot product, line and sum of difference operators are not permitted in a SIMD
-control flow context.
 
 cm_lzd
 ^^^^^^
@@ -1985,8 +1975,8 @@ Two-wide sum of absolute difference.
 In a SIMD control flow context reduction functions will perform reduction only
 on active channels of its source as determined by its context's SIMD mask.
 
-Dot product, line and sum of difference operators are not permitted in a SIMD
-control flow context.
+Sum of difference operators are not permitted in a SIMD control flow
+context.
 
 
 cm_sada2<T>
@@ -2027,8 +2017,8 @@ src3, and store the result to the first channel per 2-tuple in dst.
 In a SIMD control flow context reduction functions will perform reduction only
 on active channels of its source as determined by its context's SIMD mask.
 
-Dot product, line and sum of difference operators are not permitted in a SIMD
-control flow context.
+Sum of difference operators are not permitted in a SIMD control flow
+context.
 
 cm_sum<T>
 ^^^^^^^^^
@@ -3097,10 +3087,7 @@ cm_pln
 ^^^^^^
 
 Component-wise plane function:
-dst[i] =
-src0[0] * src1[i] +
-src0[1] * src2[i] +
-src0[3]
+dst[i] = src0[0] * src1[i] + src0[1] * src2[i] + src0[3]
 
 .. code-block:: c++
 
@@ -3123,24 +3110,19 @@ src0[3]
    * - src0
      - vector of length 4 or matrix 1x4 with the plane coefficients.
    * - src1
-     - matrix or vector operand; size must be a multiple of 8.
+     - matrix or vector operand.
    * - src2
-     - matrix or vector operand; size must be a multiple of 8.
+     - matrix or vector operand.
    * - flag
      - Saturation control; default is NOSAT, use SAT to enable saturation.
    * - Types
      - The operand type must be float.
 
-This is not allowed in SIMD Control Flow context. The size of destination,
-2nd and 3rd source operands must be a multiple of 8.
-
 cm_lrp
 ^^^^^^
 
 Component-wise linear interpolation function:
-dst[i] =
-src1[i]*src0[i] +
-src2[i]*(1.0 - src0[i])
+dst[i] = src1[i] * src0[i] + src2[i] * (1.0 - src0[i])
 
 .. code-block:: c++
 
@@ -3166,9 +3148,6 @@ src2[i]*(1.0 - src0[i])
      - matrix, matrix_ref, vector, vector_ref or scalar operand.
    * - Types
      - The operand type must be float.
-
-This is not allowed in SIMD Control Flow context. The size must be a
-multiple of 4.
 
 cm_bf_insert
 ^^^^^^^^^^^^

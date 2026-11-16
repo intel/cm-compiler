@@ -307,11 +307,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_mul", CMBK_cm_mul_impl)
             .StartsWith("__cm_intrinsic_impl_div_ieee", CMBK_cm_div_ieee_impl)
             .StartsWith("__cm_intrinsic_impl_avg", CMBK_cm_avg_impl)
-            .StartsWith("__cm_intrinsic_impl_dp2", CMBK_cm_dp2_impl)
-            .StartsWith("__cm_intrinsic_impl_dp3", CMBK_cm_dp3_impl)
-            .StartsWith("__cm_intrinsic_impl_dp4", CMBK_cm_dp4_impl)
             .StartsWith("__cm_intrinsic_impl_dph", CMBK_cm_dph_impl)
-            .StartsWith("__cm_intrinsic_impl_line", CMBK_cm_line_impl)
             .StartsWith("__cm_intrinsic_impl_fbl", CMBK_cm_fbl_impl)
             .StartsWith("__cm_intrinsic_impl_sfbh", CMBK_cm_sfbh_impl)
             .StartsWith("__cm_intrinsic_impl_ufbh", CMBK_cm_ufbh_impl)
@@ -358,8 +354,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_ror", CMBK_cm_ror_impl)
             .StartsWith("__cm_intrinsic_impl_sad2", CMBK_cm_sad2_impl)
             .StartsWith("__cm_intrinsic_impl_sada2", CMBK_cm_sada2_impl)
-            .StartsWith("__cm_intrinsic_impl_lrp", CMBK_cm_lrp_impl)
-            .StartsWith("__cm_intrinsic_impl_pln", CMBK_cm_pln_impl)
             .StartsWith("__cm_intrinsic_impl_bfrev", CMBK_cm_bfrev_impl)
             .StartsWith("__cm_intrinsic_impl_cbit", CMBK_cm_cbit_impl)
             .StartsWith("__cm_intrinsic_impl_bfins", CMBK_cm_bfins_impl)
@@ -899,10 +893,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinSad2Impl(getCurCMCallInfo(), Kind));
   case CMBK_cm_sada2_impl:
     return RValue::get(HandleBuiltinSad2AddImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_lrp_impl:
-    return RValue::get(HandleBuiltinLrpImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_pln_impl:
-    return RValue::get(HandleBuiltinPlnImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bfrev_impl:
     return RValue::get(
         HandleBuiltinBitFieldReverseImpl(getCurCMCallInfo(), Kind));
@@ -916,13 +906,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
         HandleBuiltinBitFieldExtractImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_avg_impl:
     return RValue::get(HandleBuiltinAvgImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_dp2_impl:
-  case CMBK_cm_dp3_impl:
-  case CMBK_cm_dp4_impl:
   case CMBK_cm_dph_impl:
     return RValue::get(HandleBuiltinDotProductImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_line_impl:
-    return RValue::get(HandleBuiltinLineImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_fbl_impl:
   case CMBK_cm_sfbh_impl:
   case CMBK_cm_ufbh_impl:
@@ -1257,8 +1242,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSaturateImpl(CMCallInfo &CallInfo,
 /// file. We replace this call by calling corresponding genx intrinsics.
 llvm::Value *CGCMRuntime::HandleBuiltinDotProductImpl(CMCallInfo &CallInfo,
                                                       CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_dp2_impl || Kind == CMBK_cm_dp3_impl ||
-         Kind == CMBK_cm_dp4_impl || Kind == CMBK_cm_dph_impl);
+  assert(Kind == CMBK_cm_dph_impl);
   unsigned ID = GetGenxIntrinsicID(CallInfo, Kind);
 
   // Overload with its return type.
@@ -1278,30 +1262,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinDotProductImpl(CMCallInfo &CallInfo,
 
   CI->eraseFromParent();
   return Result;
-}
-
-llvm::Value *CGCMRuntime::HandleBuiltinLineImpl(CMCallInfo &CallInfo,
-                                                CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_line_impl);
-
-  // Overload with its return type.
-  llvm::Function *CalledFn = CallInfo.CI->getCalledFunction();
-  llvm::Type *RetTy = CalledFn->getReturnType();
-  assert(RetTy->isFPOrFPVectorTy());
-
-  llvm::Function *GenxFn =
-      getGenXIntrinsic(llvm::GenXIntrinsic::genx_line, RetTy);
-
-  assert(CallInfo.CI->getNumArgOperands() == 2);
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Args[2] = {CI->getArgOperand(0), CI->getArgOperand(1)};
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-  llvm::CallInst *NewCI = Builder.CreateCall(GenxFn, Args, CI->getName());
-  NewCI->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return NewCI;
 }
 
 /// \brief Postprocess builtin cm_intrinsic_impl_fbl and cm_intrinsic_impl_fbh.
@@ -1936,84 +1896,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
-/// \brief Postprocess builtin cm_lrp.
-///
-/// template <int SZ>
-/// vector<float, SZ>
-/// __cm_intrinsic_impl_lrp(vector<float, SZ> src0, vector<float, SZ> src1,
-/// vector<float, SZ> src2);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinLrpImpl(CMCallInfo &CallInfo,
-                                               CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_lrp_impl);
-  assert(CallInfo.CE->getType()->isCMVectorMatrixType());
-  assert(
-      CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
-  assert(CallInfo.CE->getNumArgs() == 3);
-
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1),
-                         CI->getArgOperand(2)};
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-
-  // cm_lrp(float, float, float) => genx.lrp(float, float, float)
-  llvm::Type *Tys[] = {CI->getType()};
-
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_lrp, Tys);
-  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
-  Result->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return Result;
-}
-
-/// \brief Postprocess builtin cm_pln.
-///
-/// template <int SZ>
-/// vector<float, SZ>
-/// __cm_intrinsic_impl_pln(vector<float, 4> src0, vector<float, SZ * 2> src1);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinPlnImpl(CMCallInfo &CallInfo,
-                                               CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_pln_impl);
-  assert(CallInfo.CE->getType()->isCMVectorMatrixType());
-  assert(
-      CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
-  assert(CallInfo.CE->getNumArgs() == 2);
-
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-
-#if _DEBUG
-  QualType T0 = CallInfo.CE->getArg(0)->getType();
-  QualType T1 = CallInfo.CE->getArg(1)->getType();
-
-  assert(T0->isCMVectorMatrixType());
-  assert(T0->getCMVectorMatrixElementType()->isFloatingType());
-  assert(T0->getAs<CMVectorType>()->getNumElements() == 4);
-  assert(T1->isCMVectorMatrixType());
-  assert(T1->getCMVectorMatrixElementType()->isFloatingType());
-  assert(T1->getAs<CMVectorType>()->getNumElements() >= 16 &&
-         T1->getAs<CMVectorType>()->getNumElements() % 16 == 0);
-  assert(CallInfo.CE->getType()->getAs<CMVectorType>()->getNumElements() ==
-         T1->getAs<CMVectorType>()->getNumElements() / 2);
-#endif
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-
-  // cm_pln(float, float) => genx.pln(float, float)
-  llvm::Type *Tys[] = {CI->getType(), Arg1->getType()};
-  llvm::Value *Args[] = {Arg0, Arg1};
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_pln, Tys);
-  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
-  Result->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return Result;
-}
-
 /// \brief Postprocess builtin cm_cbit.
 ///
 /// template <typename T, int SZ>
@@ -2317,20 +2199,8 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_prod_sat_impl:
     llvm_unreachable("handled separately");
     break;
-  case CMBK_cm_dp2_impl:
-    ID = llvm::GenXIntrinsic::genx_dp2;
-    break;
-  case CMBK_cm_dp3_impl:
-    ID = llvm::GenXIntrinsic::genx_dp3;
-    break;
-  case CMBK_cm_dp4_impl:
-    ID = llvm::GenXIntrinsic::genx_dp4;
-    break;
   case CMBK_cm_dph_impl:
     ID = llvm::GenXIntrinsic::genx_dph;
-    break;
-  case CMBK_cm_line_impl:
-    ID = llvm::GenXIntrinsic::genx_line;
     break;
   case CMBK_cm_max_impl:
   case CMBK_cm_reduced_max_impl:

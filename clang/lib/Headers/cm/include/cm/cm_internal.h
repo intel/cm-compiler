@@ -53,27 +53,11 @@ vector<T, SZ> __cm_intrinsic_impl_imad(vector_ref<T, SZ> lo, vector<T, SZ> src0,
 template <typename T> T __cm_intrinsic_impl_imad(T &lo, T src0, T src1, T src2);
 
 template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_dp2(vector<float, SZ> src0,
-                                          vector<float, SZ> src1);
-
-template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_dp3(vector<float, SZ> src0,
-                                          vector<float, SZ> src1);
-
-template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_dp4(vector<float, SZ> src0,
-                                          vector<float, SZ> src1);
-
-template <int SZ>
 vector<float, SZ> __cm_intrinsic_impl_dph(vector<float, SZ> src0,
                                           vector<float, SZ> src1);
 
 template <int SZ>
 vector<float, SZ> __cm_intrinsic_impl_frc(vector<float, SZ> src0);
-
-template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_line(vector<float, 4> src0,
-                                           vector<float, SZ> src1);
 
 template <typename T, int SZ>
 vector<T, SZ> __cm_intrinsic_impl_max(vector<T, SZ> src0, vector<T, SZ> src1);
@@ -93,15 +77,6 @@ template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_sada2(vector<T1, SZ> src0,
                                          vector<T1, SZ> src1,
                                          vector<T0, SZ> src2, int flag);
-
-template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_lrp(vector<float, SZ> src0,
-                                          vector<float, SZ> src1,
-                                          vector<float, SZ> src2);
-
-template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_pln(vector<float, 4> src0,
-                                          vector<float, SZ * 2> src1);
 
 template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_bfrev(vector<T1, SZ> src0);

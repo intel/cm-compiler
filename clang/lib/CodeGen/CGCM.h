@@ -420,12 +420,9 @@ private:
   llvm::Value *HandleBuiltinMinMaxImpl(CMCallInfo &CallInfo,
                                        CMBuiltinKind Kind);
 
-  /// \brief Postprocess builtin cm_dp2, cm_dp3, cm_dp4 and cm_dph.
+  /// \brief Postprocess builtin cm_dph.
   llvm::Value *HandleBuiltinDotProductImpl(CMCallInfo &CallInfo,
                                            CMBuiltinKind Kind);
-
-  /// \brief Postprocess builtin cm_line
-  llvm::Value *HandleBuiltinLineImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_intrinsic_impl_frc.
   llvm::Value *HandleBuiltinFblFbhImpl(CMCallInfo &CallInfo,
@@ -471,12 +468,6 @@ private:
   /// \brief Postprocess builtin cm_sada2.
   llvm::Value *HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
                                         CMBuiltinKind Kind);
-
-  /// \brief Postprocess builtin cm_lrp.
-  llvm::Value *HandleBuiltinLrpImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
-
-  /// \brief Postprocess builtin cm_pln.
-  llvm::Value *HandleBuiltinPlnImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_bfrev.
   llvm::Value *HandleBuiltinCountBitsImpl(CMCallInfo &CallInfo,

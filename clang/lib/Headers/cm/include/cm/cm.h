@@ -1065,14 +1065,9 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     details::is_fp_or_dword_type<T>::value &&std::is_floating_point<T>::value,
     vector<T, SZ> >::type
 cm_line(vector<T, 4> src0, vector<T, SZ> src1, int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-
-  vector<T, SZ> _Src1 = src1;
-  vector<T, SZ> _Result;
-#pragma unroll
-  for (int i = 0; i < SZ; i += 4) {
-    _Result.select<4,1>(i) = src0[0] * src1.select<4,1>(i) + src0[3];
-  }
+  T _P = src0[0];
+  T _Q = src0[3];
+  vector<T, SZ> _Result = src1 * _P + _Q;
 
   if (flag == _GENX_SAT)
     _Result = details::__cm_intrinsic_impl_sat<T>(_Result);
@@ -1357,22 +1352,10 @@ template <int SZ>
 CM_NODEBUG CM_INLINE vector<float, SZ>
 cm_pln(vector<float, 4> src0, vector<float, SZ> src1, vector<float, SZ> src2,
        int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ >= 8 && (SZ & 0x7) == 0,
-                  "vector size must be a multiple of 8");
-
-  // __cm_intrinsic_impl_pln() requires src1 and src2 to be combined into
-  // a single matrix, interleaving the values together in blocks of 8
-  // items (ie, a block of 8 from src1, then a block of 8 from src2, then
-  // the next block of 8 from src1, then the next block of 8 from src2,
-  // and so-on.)
-  matrix<float, (SZ >> 3), 16> _Src12;
-
-  _Src12.select<(SZ >> 3), 1, 8, 1>(0, 0) = src1.format<float, (SZ >> 3), 8>();
-  _Src12.select<(SZ >> 3), 1, 8, 1>(0, 8) = src2.format<float, (SZ >> 3), 8>();
-
-  vector<float, SZ> _Result =
-      details::__cm_intrinsic_impl_pln<SZ>(src0, _Src12.format<float>());
-
+  float _P = src0[0];
+  float _Q = src0[1];
+  float _R = src0[3];
+  vector<float, SZ> _Result = src1 * _P + src2 * _Q + _R;
   if (flag != _GENX_SAT)
     return _Result;
 
