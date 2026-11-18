@@ -53,10 +53,6 @@ vector<T, SZ> __cm_intrinsic_impl_imad(vector_ref<T, SZ> lo, vector<T, SZ> src0,
 template <typename T> T __cm_intrinsic_impl_imad(T &lo, T src0, T src1, T src2);
 
 template <int SZ>
-vector<float, SZ> __cm_intrinsic_impl_dph(vector<float, SZ> src0,
-                                          vector<float, SZ> src1);
-
-template <int SZ>
 vector<float, SZ> __cm_intrinsic_impl_frc(vector<float, SZ> src0);
 
 template <typename T, int SZ>
@@ -67,16 +63,6 @@ vector<T, SZ> __cm_intrinsic_impl_lzd(vector<T, SZ> src0);
 
 template <typename T, int SZ>
 vector<T, SZ> __cm_intrinsic_impl_min(vector<T, SZ> src0, vector<T, SZ> src1);
-
-//sad2 has 8-bit inputs and 16-bit result, no need for saturation
-template <typename T0, typename T1, int SZ>
-vector<T0, SZ> __cm_intrinsic_impl_sad2(vector<T1, SZ> src0,
-                                        vector<T1, SZ> src1);
-
-template <typename T0, typename T1, int SZ>
-vector<T0, SZ> __cm_intrinsic_impl_sada2(vector<T1, SZ> src0,
-                                         vector<T1, SZ> src1,
-                                         vector<T0, SZ> src2, int flag);
 
 template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_bfrev(vector<T1, SZ> src0);

@@ -923,9 +923,9 @@ cm_min(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
   return _Result(0);
 }
 
-// The old implementation is to generate vISA IRs for dp2/dp3/dp4/dph/line.
-// Now We change to use direct mul/add, and hope to generate mad instructions
-// at the end, to still get the performance as good as HW solution.
+// dp2/dp3/dp4/dph/line use direct mul/add, and hope to generate mad
+// instructions at the end, to still get the performance as good as HW
+// solution.
 // We rely on "pragma unroll" to get better code.
 // The only input and return types for these APIs are floats.
 // In order to be able to use the old emu code, we keep the template argument
@@ -1228,10 +1228,18 @@ cm_reduced_max(matrix<T1, N1, N2> src, int flag = _GENX_NOSAT) {
 template <typename T0, typename T1, int SZ, typename U>
 CM_NODEBUG CM_INLINE vector<T0, SZ> cm_sad2(vector<T1, SZ> src0, U src1,
                                             int flag = _GENX_NOSAT) {
+  CM_STATIC_ERROR(SZ % 2 == 0, "result size is not a multiple of 2");
   typedef typename details::byte_type<T1>::type _BT1;
   vector<_BT1, SZ> _Src0 = src0;
   vector<_BT1, SZ> _Src1 = src1;
-  return details::__cm_intrinsic_impl_sad2<T0, _BT1, SZ>(_Src0, _Src1);
+  vector<int, SZ> _Diff = _Src0;
+  _Diff -= _Src1;
+  vector<int, SZ> _Abs = cm_abs(_Diff);
+  // The second channel of each 2-tuple is set to zero.
+  vector<T0, SZ> _Result = 0;
+  _Result.select<SZ / 2, 2>(0) =
+      _Abs.select<SZ / 2, 2>(0) + _Abs.select<SZ / 2, 2>(1);
+  return _Result;
 }
 
 template <typename T0, typename T1, int N1, int N2, typename U>
@@ -1274,10 +1282,22 @@ cm_sada2(vector<T1, SZ> src0, U src1, V src2, int flag = _GENX_NOSAT) {
       std::is_integral<_BT1>::value && sizeof(_BT1) == sizeof(char) &&
           std::is_integral<_WT0>::value && sizeof(_WT0) == sizeof(short),
       "operand conversion failed");
+  CM_STATIC_ERROR(SZ % 2 == 0, "result size is not a multiple of 2");
   vector<_BT1, SZ> _Src0 = src0;
   vector<_BT1, SZ> _Src1 = src1;
   vector<_WT0, SZ> _Src2 = src2;
-  return details::__cm_intrinsic_impl_sada2<T0>(_Src0, _Src1, _Src2, flag);
+  vector<int, SZ> _Diff = _Src0;
+  _Diff -= _Src1;
+  vector<int, SZ> _Abs = cm_abs(_Diff);
+  // The second channel of each 2-tuple is set to zero.
+  vector<int, SZ> _Acc = 0;
+  _Acc.select<SZ / 2, 2>(0) = _Abs.select<SZ / 2, 2>(0) +
+                              _Abs.select<SZ / 2, 2>(1) +
+                              _Src2.select<SZ / 2, 2>(0);
+  if (flag != _GENX_SAT)
+    return vector<_WT0, SZ>(_Acc);
+
+  return details::__cm_intrinsic_impl_sat<_WT0>(_Acc);
 }
 
 template <typename T0, typename T1, int N1, int N2, typename U, typename V>
@@ -1315,8 +1335,7 @@ cm_sada2(T1 src0, T2 src1, T3 src2, int flag = _GENX_NOSAT) {
 }
 
 // cm_lrp
-// The old implementation is to generate vISA IRs for lrp.
-// Now We change to use direct mul/add, and hope to generate mad instructions
+// Direct mul/add is used, and hope to generate mad instructions
 // at the end, to still get the performance as good as HW solution.
 // The only input and return types for these APIs are floats.
 // In order to be able to use the old emu code, we keep the template argument

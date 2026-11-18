@@ -1137,10 +1137,6 @@ guarantee consistent semantics and to allow for an efficient implementation.
   SIMD width of its immediate context. Furthermore reduction functions will perform reduction
   only on active scalar sub-elements of its source as determined by its context's SIMD mask.
 
-* The sum of absolute differences operators are not allowed in SIMD
-  control flow blocks as they operate on tuple variable which are not well-defined when we use
-  SIMD masks.
-
 * Block read/write, sampler, VME and thread communication intrinsics are not allowed in SIMD
   control flow context. It is however possible to use scatter read/write statements in a SIMD
   context provided the read/write destination/source size is equal to the SIMD width of the block.
@@ -1944,7 +1940,8 @@ Round zero.
 cm_sad2<T>
 ^^^^^^^^^^
 
-Two-wide sum of absolute difference.
+Two-wide sum of absolute difference. The result is stored to the first channel
+per 2-tuple in dst; the second channel is set to zero.
 
 .. code-block:: c++
 
@@ -1972,18 +1969,12 @@ Two-wide sum of absolute difference.
      - Saturation control; default is 0, use SAT to enable saturation.
 
 
-In a SIMD control flow context reduction functions will perform reduction only
-on active channels of its source as determined by its context's SIMD mask.
-
-Sum of difference operators are not permitted in a SIMD control flow
-context.
-
-
 cm_sada2<T>
 ^^^^^^^^^^^
 
 Compute two-wide sum of absolute difference between src1 and src2, add that to
-src3, and store the result to the first channel per 2-tuple in dst.
+src3, and store the result to the first channel per 2-tuple in dst. The second
+channel is set to zero.
 
 .. code-block:: c++
 
@@ -2012,13 +2003,6 @@ src3, and store the result to the first channel per 2-tuple in dst.
      - matrix, matrix_ref or vector, vector_ref accumulator operand.
    * - flag
      - Saturation control; default is 0, use SAT to enable saturation.
-
-
-In a SIMD control flow context reduction functions will perform reduction only
-on active channels of its source as determined by its context's SIMD mask.
-
-Sum of difference operators are not permitted in a SIMD control flow
-context.
 
 cm_sum<T>
 ^^^^^^^^^

@@ -307,7 +307,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_mul", CMBK_cm_mul_impl)
             .StartsWith("__cm_intrinsic_impl_div_ieee", CMBK_cm_div_ieee_impl)
             .StartsWith("__cm_intrinsic_impl_avg", CMBK_cm_avg_impl)
-            .StartsWith("__cm_intrinsic_impl_dph", CMBK_cm_dph_impl)
             .StartsWith("__cm_intrinsic_impl_fbl", CMBK_cm_fbl_impl)
             .StartsWith("__cm_intrinsic_impl_sfbh", CMBK_cm_sfbh_impl)
             .StartsWith("__cm_intrinsic_impl_ufbh", CMBK_cm_ufbh_impl)
@@ -352,8 +351,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_shl", CMBK_cm_shl_impl)
             .StartsWith("__cm_intrinsic_impl_rol", CMBK_cm_rol_impl)
             .StartsWith("__cm_intrinsic_impl_ror", CMBK_cm_ror_impl)
-            .StartsWith("__cm_intrinsic_impl_sad2", CMBK_cm_sad2_impl)
-            .StartsWith("__cm_intrinsic_impl_sada2", CMBK_cm_sada2_impl)
             .StartsWith("__cm_intrinsic_impl_bfrev", CMBK_cm_bfrev_impl)
             .StartsWith("__cm_intrinsic_impl_cbit", CMBK_cm_cbit_impl)
             .StartsWith("__cm_intrinsic_impl_bfins", CMBK_cm_bfins_impl)
@@ -889,10 +886,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_rol_impl:
   case CMBK_cm_ror_impl:
     return RValue::get(HandleBuiltinRolRorImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_sad2_impl:
-    return RValue::get(HandleBuiltinSad2Impl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_sada2_impl:
-    return RValue::get(HandleBuiltinSad2AddImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bfrev_impl:
     return RValue::get(
         HandleBuiltinBitFieldReverseImpl(getCurCMCallInfo(), Kind));
@@ -906,8 +899,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
         HandleBuiltinBitFieldExtractImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_avg_impl:
     return RValue::get(HandleBuiltinAvgImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_dph_impl:
-    return RValue::get(HandleBuiltinDotProductImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_fbl_impl:
   case CMBK_cm_sfbh_impl:
   case CMBK_cm_ufbh_impl:
@@ -1233,32 +1224,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinSaturateImpl(CMCallInfo &CallInfo,
     // no saturation is needed. Just replace this satuaration with a noop inst.
     Result = Builder.CreateBitCast(Arg, Arg->getType());
   }
-
-  CI->eraseFromParent();
-  return Result;
-}
-
-/// This is calling the CM builtin template declaration used in the header
-/// file. We replace this call by calling corresponding genx intrinsics.
-llvm::Value *CGCMRuntime::HandleBuiltinDotProductImpl(CMCallInfo &CallInfo,
-                                                      CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_dph_impl);
-  unsigned ID = GetGenxIntrinsicID(CallInfo, Kind);
-
-  // Overload with its return type.
-  llvm::Function *CalledFn = CallInfo.CI->getCalledFunction();
-  llvm::Type *RetTy = CalledFn->getReturnType();
-  assert(RetTy->isFPOrFPVectorTy());
-
-  llvm::Function *GenxFn = getGenXIntrinsic(ID, RetTy);
-
-  assert(CallInfo.CI->getNumArgOperands() == 2);
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Args[2] = {CI->getArgOperand(0), CI->getArgOperand(1)};
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-  llvm::CallInst *Result = Builder.CreateCall(GenxFn, Args, CI->getName());
-  Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
   return Result;
@@ -1800,102 +1765,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinRolRorImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
-/// \brief Postprocess builtin cm_sad2.
-///
-/// template <typename T0, typename T1, int SZ>
-/// vector<T0, SZ>
-/// __cm_intrinsic_impl_sad2(vector<T1, SZ> src0, vector<T1, SZ> src1);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinSad2Impl(CMCallInfo &CallInfo,
-                                                CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_sad2_impl);
-
-  QualType T0 = CallInfo.CE->getType();
-  assert(T0->isCMVectorMatrixType());
-  T0 = T0->getCMVectorMatrixElementType();
-
-  assert(CallInfo.CE->getNumArgs() == 2);
-  QualType T1 = CallInfo.CE->getArg(0)->getType();
-  assert(T1->isCMVectorMatrixType());
-  T1 = T1->getCMVectorMatrixElementType();
-
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-
-  unsigned ID = GetGenxIntrinsicID(CallInfo, Kind, false);
-
-  // cm_sad2<int>(int, int, SAT) => genx.*sad2(int, int)
-  llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = {Arg0, Arg1};
-
-  llvm::Function *F = getGenXIntrinsic(ID, Tys);
-  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
-  Result->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return Result;
-}
-
-/// \brief Postprocess builtin cm_sada2.
-///
-/// template <typename T0, typename T1, int SZ>
-/// vector<T0, SZ>
-/// __cm_intrinsic_impl_sada2(vector<T1, SZ> src0, vector<T1, SZ> src1,
-/// vector<T0, SZ>, int flag);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
-                                                   CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_sada2_impl);
-
-  QualType T0 = CallInfo.CE->getType();
-  assert(T0->isCMVectorMatrixType());
-  T0 = T0->getCMVectorMatrixElementType();
-
-  assert(CallInfo.CE->getNumArgs() == 4);
-  QualType T1 = CallInfo.CE->getArg(0)->getType();
-  assert(T1->isCMVectorMatrixType());
-  T1 = T1->getCMVectorMatrixElementType();
-
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-  llvm::Value *Arg2 = CI->getArgOperand(2);
-  llvm::Value *Flag = CI->getArgOperand(3);
-
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-
-  // Check the saturation flag, compare it with 0.
-  llvm::Value *CMP = Builder.CreateICmpEQ(
-      Flag, llvm::Constant::getNullValue(Flag->getType()), "cmp");
-
-  // non-saturated ID
-  unsigned ID0 = GetGenxIntrinsicID(CallInfo, Kind, false);
-
-  // saturated ID
-  unsigned ID1 = GetGenxIntrinsicID(CallInfo, Kind, true);
-
-  // cm_sada2<int>(int, int, SAT) => genx.ssad2add.sat(int, int)
-  llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = {Arg0, Arg1, Arg2};
-
-  llvm::Function *F0 = getGenXIntrinsic(ID0, Tys);
-  llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
-  R0->setDebugLoc(CI->getDebugLoc());
-
-  llvm::Function *F1 = getGenXIntrinsic(ID1, Tys);
-  llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
-  R1->setDebugLoc(CI->getDebugLoc());
-
-  // The final result depends on the saturation flag.
-  llvm::Value *Result = Builder.CreateSelect(CMP, R0, R1);
-
-  CI->eraseFromParent();
-  return Result;
-}
-
 /// \brief Postprocess builtin cm_cbit.
 ///
 /// template <typename T, int SZ>
@@ -2151,39 +2020,6 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_ror_impl:
     ID = llvm::GenXIntrinsic::genx_ror;
     break;
-  case CMBK_cm_sad2_impl: {
-    QualType T1 = CallInfo.CE->getArg(0)->getType();
-    if (T1->isCMVectorMatrixType())
-      T1 = T1->getCMVectorMatrixElementType();
-
-    ID = T1->isSignedIntegerType() ? llvm::GenXIntrinsic::genx_ssad2
-                                   : llvm::GenXIntrinsic::genx_usad2;
-    break;
-  }
-  case CMBK_cm_sada2_impl: {
-    QualType TR = CallInfo.CE->getType();
-    if (TR->isCMVectorMatrixType())
-      TR = TR->getCMVectorMatrixElementType();
-
-    QualType T1 = CallInfo.CE->getArg(0)->getType();
-    if (T1->isCMVectorMatrixType())
-      T1 = T1->getCMVectorMatrixElementType();
-
-    if (TR->isSignedIntegerType() && T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_sssad2add_sat
-                       : llvm::GenXIntrinsic::genx_sssad2add;
-    } else if (TR->isSignedIntegerType() && !T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_susad2add_sat
-                       : llvm::GenXIntrinsic::genx_susad2add;
-    } else if (!TR->isSignedIntegerType() && T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_ussad2add_sat
-                       : llvm::GenXIntrinsic::genx_ussad2add;
-    } else {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_uusad2add_sat
-                       : llvm::GenXIntrinsic::genx_uusad2add;
-    }
-    break;
-  }
   case CMBK_cm_bfext_impl: {
     QualType TR = CallInfo.CE->getType();
     if (TR->isCMVectorMatrixType())
@@ -2198,9 +2034,6 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_prod_impl:
   case CMBK_cm_prod_sat_impl:
     llvm_unreachable("handled separately");
-    break;
-  case CMBK_cm_dph_impl:
-    ID = llvm::GenXIntrinsic::genx_dph;
     break;
   case CMBK_cm_max_impl:
   case CMBK_cm_reduced_max_impl:
