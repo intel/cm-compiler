@@ -205,7 +205,8 @@ composeInternalOptions(const llvm::Optional<std::string> &BinFormat,
                        const std::vector<std::string> &BackendOptions,
                        const std::string &Features, bool TimePasses,
                        bool PrintStats, const std::string &StatsFile) {
-  std::string InternalOptions;
+  // cmc always compiles ahead of time, unlike the driver (JIT).
+  std::string InternalOptions{" -vc-aot"};
 
   if (BinFormat)
     InternalOptions.append(" -binary-format=").append(BinFormat.getValue());
